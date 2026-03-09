@@ -1,0 +1,434 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{listings}
+\usepackage[usenames,dvipsnames]{color} 
+\usepackage{gensymb}
+\usepackage{appendix}
+\usepackage{multicol}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{indentfirst}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[a4paper, total={6in, 8in}]{geometry}
+\setlength{\parindent}{4em}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\usepackage{longtable}
+
+\lstset{
+   language=R,                     % the language of the code
+  basicstyle=\tiny\ttfamily, % the size of the fonts that are used for the code
+  numbers=left,                   % where to put the line-numbers
+  numberstyle=\tiny\color{Blue},  % the style that is used for the line-numbers
+  stepnumber=1,                   % the step between two line-numbers. If it is 1, each line
+                                  % will be numbered
+  numbersep=5pt,                  % how far the line-numbers are from the code
+  backgroundcolor=\color{white},  % choose the background color. You must add \usepackage{color}
+  showspaces=false,               % show spaces adding particular underscores
+  showstringspaces=false,         % underline spaces within strings
+  showtabs=false,                 % show tabs within strings adding particular underscores
+  rulecolor=\color{black},        % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. commens (green here))
+  tabsize=2,                      % sets default tabsize to 2 spaces
+  captionpos=b,                   % sets the caption-position to bottom
+  breaklines=true,                % sets automatic line breaking
+  breakatwhitespace=false,        % sets if automatic breaks should only happen at whitespace
+  keywordstyle=\color{RoyalBlue},      % keyword style
+  commentstyle=\color{YellowGreen},   % comment style
+  stringstyle=\color{ForestGreen}      % string literal style
+}
+
+
+%\usepackage[none]{hyphenat} %Prevents lines from being hyphenated 
+
+\renewcommand{\baselinestretch}{2.0}
+\newcommand{\var}{\text{Var}}
+\newcommand{\cov}{\text{Cov}}
+\newcommand{\e}{\text{E}}
+
+% Bibliography package
+% Must add a file called "references.bib" 
+% Different names are also fine
+
+\usepackage[
+backend=biber,
+citestyle=authoryear,
+sorting=nyt
+]{biblatex}
+\addbibresource{references.bib}
+
+\title{Causal Effect of Healthcare Coverage \\[1ex] \large PUBH 7485 Final Project}
+\author{Michael Hartnett}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+Since the passage of the Affordable Care Act (ACA) in 2010, the number of Americans that have some form of health insurance has dramatically increased. According to recent census data, 91.4\% of people in the US are covered by insurance (\cite{keisler2021health}). Unfortunately, there is still surprisingly little known about the causal impact that access to health insurance has on actual health outcomes. There are multiple reasons why identifying the effect of insurance on health outcomes is difficult, but one significant challenge that can potentially be addressed using the tools of causal inference is the significant confounding issue. In this project, I apply causal inference and survival analysis methods to improve the modeling procedure, though I do not find any statistically significant results. 
+
+
+
+\section{Methods}
+\subsection{Data overview}
+The data used for this analysis come from the National Longitudinal Mortality Study (NLMS) published by the US Census Bureau. Each record in this dataset corresponds to an individual who's demographic information was recorded at baseline and who was then followed for 11 years to see if they died of any cause. Respondents that survived for more than 11 years after their initial survey are right censored. This survey also codifies each death into one of 113 categories. I choose to consider deaths related to medical issues separately from deaths not related to medical issues because we should not necessarily expect health insurance coverage to reduce the probability of a non-medical related death (e.g. a car crash).\footnote{Some economists would be quick to point out here that there is a moral hazard associated with health insurance that might lead to riskier behavior among the insured, but riskiness is difficult to measure empirically and is well beyond the scope of this project.} It is worth noting that we do not have information about when these individuals were first surveyed, which could be problematic considering this means we can not account for changes in medicine nor for changes in health insurance policy. 
+
+The sub-population of interest from this dataset are people between the ages of 18 and 51 (the 25th and 75th percentiles). This excludes children whose insurance status almost entirely depends on their parents and elderly people who are more likely to experience some medical cause of death and who are almost always eligible for medicare. The rest of the data cleaning is motivated by the fact that the primary analysis I wish to perform takes advantage of the \emph{cmprskcoxmsm} package in R \parencite{cmprskcoxmsm}. The main drawback of this package is that it can not handle extremely large data sets. Because of this, I first dropped all individuals who were missing records for any of the variables of interest, then took a random sub-sample of 15,000 respondents for the final analysis. 
+
+
+\subsection{Summary Statistics}
+\begin{table}[h!]
+\caption{Summary statistics by insurance status}
+\centering
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lllll}
+\toprule
+  &  & Uninsured & Insured & SMD\\
+\midrule
+\cellcolor{gray!6}{n} & \cellcolor{gray!6}{} & \cellcolor{gray!6}{3088} & \cellcolor{gray!6}{11912} & \cellcolor{gray!6}{}\\
+Died during survey (\%) & No & 3019 (97.8) & 11669 (98.0) & 0.013\\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{Yes} & \cellcolor{gray!6}{69 ( 2.2)} & \cellcolor{gray!6}{243 ( 2.0)} & \cellcolor{gray!6}{}\\
+Medical cause of death (\%) & No & 3041 (98.5) & 11720 (98.4) & 0.007\\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{Yes} & \cellcolor{gray!6}{47 ( 1.5)} & \cellcolor{gray!6}{192 ( 1.6)} & \cellcolor{gray!6}{}\\
+\addlinespace
+Non-medical cause of death (\%) & No & 3066 (99.3) & 11861 (99.6) & 0.038\\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{Yes} & \cellcolor{gray!6}{22 ( 0.7)} & \cellcolor{gray!6}{51 ( 0.4)} & \cellcolor{gray!6}{}\\
+Age (mean (SD)) &  & 31.67 (8.99) & 34.64 (9.13) & 0.328\\
+\cellcolor{gray!6}{Sex (\%)} & \cellcolor{gray!6}{Male} & \cellcolor{gray!6}{1719 (55.7)} & \cellcolor{gray!6}{5566 (46.7)} & \cellcolor{gray!6}{0.180}\\
+\addlinespace
+ & Female & 1369 (44.3) & 6346 (53.3) & \\
+\cellcolor{gray!6}{Urban vs Rural (\%)} & \cellcolor{gray!6}{Urban} & \cellcolor{gray!6}{2433 (78.8)} & \cellcolor{gray!6}{9050 (76.0)} & \cellcolor{gray!6}{0.067}\\
+ & Rural & 655 (21.2) & 2862 (24.0) & \\
+\cellcolor{gray!6}{Race (\%)} & \cellcolor{gray!6}{White} & \cellcolor{gray!6}{2421 (78.4)} & \cellcolor{gray!6}{9981 (83.8)} & \cellcolor{gray!6}{0.210}\\
+ & Black & 291 ( 9.4) & 1001 ( 8.4) & \\
+\addlinespace
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{American Indian or Alaskan Native} & \cellcolor{gray!6}{26 ( 0.8)} & \cellcolor{gray!6}{180 ( 1.5)} & \cellcolor{gray!6}{}\\
+ & Asian or Pacific Islander & 226 ( 7.3) & 584 ( 4.9) & \\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{Other nonwhite} & \cellcolor{gray!6}{124 ( 4.0)} & \cellcolor{gray!6}{166 ( 1.4)} & \cellcolor{gray!6}{}\\
+Health (\%) & Excellent & 905 (29.3) & 4751 (39.9) & 0.282\\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{Very good} & \cellcolor{gray!6}{1012 (32.8)} & \cellcolor{gray!6}{4056 (34.0)} & \cellcolor{gray!6}{}\\
+\addlinespace
+ & Good & 879 (28.5) & 2351 (19.7) & \\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{Fair} & \cellcolor{gray!6}{226 ( 7.3)} & \cellcolor{gray!6}{541 ( 4.5)} & \cellcolor{gray!6}{}\\
+ & Poor & 66 ( 2.1) & 213 ( 1.8) & \\
+\cellcolor{gray!6}{Inflation adjusted income (\%)} & \cellcolor{gray!6}{\$0 - \$4,999} & \cellcolor{gray!6}{403 (13.1)} & \cellcolor{gray!6}{504 ( 4.2)} & \cellcolor{gray!6}{0.886}\\
+(1990 USD) & \$5,000 - \$7,499 & 232 ( 7.5) & 347 ( 2.9) & \\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{\$7,499 - \$9,999} & \cellcolor{gray!6}{201 ( 6.5)} & \cellcolor{gray!6}{357 ( 3.0)} & \cellcolor{gray!6}{}\\
+ & \$10,000 - \$12,499 & 248 ( 8.0) & 339 ( 2.8) & \\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{\$12,500 - \$14,999} & \cellcolor{gray!6}{267 ( 8.6)} & \cellcolor{gray!6}{355 ( 3.0)} & \cellcolor{gray!6}{}\\
+ & \$15,000 - \$19,999 & 432 (14.0) & 825 ( 6.9) & \\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{\$20,000 - \$24,999} & \cellcolor{gray!6}{295 ( 9.6)} & \cellcolor{gray!6}{973 ( 8.2)} & \cellcolor{gray!6}{}\\
+\addlinespace
+ & \$25,000 - \$29,999 & 218 ( 7.1) & 1044 ( 8.8) & \\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{\$30,000 - \$34,999} & \cellcolor{gray!6}{169 ( 5.5)} & \cellcolor{gray!6}{876 ( 7.4)} & \cellcolor{gray!6}{}\\
+ & \$35,000 - \$39,999 & 151 ( 4.9) & 839 ( 7.0) & \\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{\$40,000 - \$49,999} & \cellcolor{gray!6}{175 ( 5.7)} & \cellcolor{gray!6}{1452 (12.2)} & \cellcolor{gray!6}{}\\
+ & \$50,000 - \$59,999 & 128 ( 4.1) & 1105 ( 9.3) & \\
+\cellcolor{gray!6}{} & \cellcolor{gray!6}{\$60,000 - \$74,999} & \cellcolor{gray!6}{89 ( 2.9)} & \cellcolor{gray!6}{1211 (10.2)} & \cellcolor{gray!6}{}\\
+ & $\geq$ \$75,000  & 80 ( 2.6) & 1685 (14.1) & \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[h!]
+    \centering
+    \caption{Standardized Mean Difference}
+    \includegraphics[width = .7\textwidth]{smd plot.png}
+    \label{fig:my_label}
+\end{figure}
+
+For this randomly selected sub-sample, we see that there is not very good balance among the treatment and control groups, particularly for the income variable. This is deeply concerning, because it is well established that income and health outcomes are related to one another (e.g. \cite{ettner1996new}, \cite{marmot2002influence}). It is also worth noting that this particular sample has a relatively low proportion of people covered by health insurance. Only 79.4\% of respondents in this sample have some form of health insurance, but every year since 1990, at least 83\% of Americans have had health insurance \parencite{insurance}. The imbalance in this data justifies the use of inverse probability weights. We see from Figure 1 that weighting the data dramatically reduces the SMD among the covariates. 
+
+\subsection{Model selection}
+The main model I consider is a weighted cause-specific hazards model (e.g. \cite{geskus2011cause}) where the event of interest is death due to medical causes and death due to non-medical causes is considered a competing risk. Software limitations restrict the number of covariates we can consider, so in order to maximize the size of the working dataset I chose to only consider main effects. A straightforward logistic model provides evidence for including all covariates identified in Table 1. I also include coefficient estimates from both an unweighted and a weighted Cox proportional hazards model where individuals who experience death from a non-medical cause are considered censored for comparison. 
+
+\section{Results}
+
+\begin{figure}[h!]
+    \centering
+    \caption{Cumulative Incidence Curves}
+    \includegraphics[width = .9\textwidth]{cuminc.png}
+    \label{fig:my_label}
+\end{figure}
+
+\begin{table}[!h] \centering 
+  \caption{Estimated treatment effect of insurance}
+  \label{} 
+  \resizebox{\linewidth}{!}{
+  \begin{tabular}{@{\extracolsep{5pt}} ccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & Logistic model & Unweighted Cox & Weighted Cox & Weighted cause-specific hazards\\ 
+\hline \\[-1.8ex] 
+Estimated Coefficient & 0.243 & 0.239 & 0.265 & -0.014 \\ 
+SE                    & 0.178 & 0.172 & 0.176 &  0.369\\
+P-value               & 0.172 & 0.165 & 0.171 &  0.969\\
+\hline \\[-1.8ex] 
+\end{tabular} }
+\end{table} 
+
+All four model specifications failed to find a statistically significant causal effect of having health insurance on the likelihood that someone experiences a medical cause of death. Even so, the estimates from the first three models seem to suggest that having health insurance might actually increase the likelihood of dying. This reflects what we see from the cumulative incidence plots in Figure 2. For both types of death, the insured group does have a slightly higher mortality rate. The estimate from the weighted cause-specific hazards model seems to indicate that this difference is likely not the result of an individuals insurance status. 
+
+\newpage
+
+Coefficient estimates for the other variables can be found in appendix B.\footnote{The weighted cause-specific hazards model does not report coefficient estimates for anything besides the treatment effect, but there is no reason to suspect this model would produce wildly different results.} All of the models agree that age, income, and health at baseline are much better indicators of whether or not someone is at risk of dying. 
+
+
+
+\section{Discussion}
+The first and most important takeaway from these results is that none of these models are capable of identifying any statistically significant effect of having health insurance. Interestingly, the estimate for the weighted cause-specific hazards model is both much closer to zero and has a much higher standard error, suggesting that healthcare is essentially irrelevant. I believe that this is actually a good indicator that this model is the most accurate out of all. There are countless challenges that make estimating the causal effect of health insurance extremely difficult. The intuitive reason to think that it would is that having health insurance would increase an individual's access to healthcare, but this completely ignores the fact that not all healthcare providers (nor all health insurance plans) are of the same quality. Given this, it might make sense to believe the model that takes the slight difference in mortality rates among the insured vs. uninsured groups and attributes it entirely to other factors. 
+
+Although these models do not provide a definitive answer to what the causal effect of health insurance is, I believe it is fair to say that the inverse probability weighted-competing risks framework model was the best framework for approaching this problem. Certainly the imbalance among the treatment and control groups was a serious problem that weighting improved, and the competing risks model produced what was in my opinion the most logical result. Going forward,these methods paired with a more complete dataset would likely provide a much clearer picture as to how health insurance effects health outcomes. 
+
+
+
+\clearpage
+\appendix
+
+\section{ICD-10 Causes of Death}
+\begin{center}
+\begin{longtable}{|l|l|}
+\caption{} \label{tab:long} \\
+
+\hline \multicolumn{1}{|c|}{\textbf{Code}} & \multicolumn{1}{c|}{\textbf{Description}}\\ \hline 
+\endfirsthead
+
+\multicolumn{2}{c}%
+{{\bfseries \tablename\ \thetable{} -- continued from previous page}} \\
+\hline \multicolumn{1}{|c|}{\textbf{Code}} & \multicolumn{1}{c|}{\textbf{Description}}\\ \hline 
+\endhead
+
+\hline \multicolumn{2}{|r|}{{* Non-medical cause of death \hspace{68mm}Continued on next page}} \\ \hline
+\endfoot
+
+\hline \hline
+\endlastfoot
+1&	Salmonella infections\\
+2&	Shigellosis and amebiasis\\
+3&	Certain other intestinal infections\\
+4&	Respiratory tuberculosis\\
+5&	Other tuberculosis\\
+6&	Whooping cough\\
+7&	Scarlet fever and erysipelas\\
+8&	Meningococcal infection\\
+9&	Septicemia\\
+10&	Syphilis\\
+11&	Acute poliomyelitis\\
+12&	Arthropod-borne viral encephalitis\\
+13&	Measles\\
+14&	Viral hepatitis\\
+15&	Human immunodeficiency virus (HIV) disease\\
+16&	Malaria\\
+17&	Other and unspecified infectious and parasitic diseases and their sequelae\\
+18&	Malignant neoplasms of lip, oral cavity and pharynx\\
+19&	Malignant neoplasm of esophagus\\
+20&	Malignant neoplasm of stomach\\
+21&	Malignant neoplasms of colon, rectum and anus\\
+22&	Malignant neoplasms of liver and intrahepatic bile ducts\\
+23&	Malignant neoplasm of pancreas\\
+24&	Malignant neoplasm of larynx\\
+25&	Malignant neoplasms of trachea, bronchus and lung\\
+26&	Malignant melanoma of skin\\
+27&	Malignant neoplasm of breast\\
+28&	Malignant neoplasm of cervix uteri\\
+29&	Malignant neoplasms of corpus uteri and uterus, part unspecified\\
+30&	Malignant neoplasm of ovary\\
+31&	Malignant neoplasm of prostate\\
+32&	Malignant neoplasms of kidney and renal pelvis\\
+33&	Malignant neoplasm of bladder\\
+34&	Malignant neoplasms of meninges, brain and other parts of central nervous system\\
+35&	Hodgkin's disease\\
+36&	Non-Hodgkin's lymphoma\\
+37&	Leukemia\\
+38&	Multiple myeloma and immunoproliferative neoplasms\\
+39&	Other and unspecified malignant neoplasms of lymphoid, hematopoietic and related tissue\\
+40&	All other and unspecified malignant neoplasms\\
+41&	In situ neoplasms, benign neoplasms and neoplasms of uncertain or unknown behavior\\
+42&	Anemias\\
+43&	Diabetes mellitus\\
+44&	Malnutrition*\\
+45&	Other nutritional deficiencies*\\
+46&	Meningitis\\
+47&	Parkinson's disease\\
+48&	Alzheimer's disease\\
+49&	Acute rheumatic fever and chronic rheumatic heart diseases\\
+50&	Hypertensive heart disease\\
+51&	Hypertensive heart and renal disease\\
+52&	Acute myocardial infarction\\
+53&	Other acute ischemic heart diseases\\
+54&	Atherosclerotic cardiovascular disease, so described\\
+55&	All other forms of chronic ischemic heart disease\\
+56&	Acute and subacute endocarditis\\
+57&	Diseases of pericardium and acute myocarditis\\
+58&	Heart failure\\
+59&	All other forms of heart disease\\
+60&	Essential (primary) hypertension and hypertensive renal disease\\
+61&	Cerebrovascular diseases\\
+62&	Atherosclerosis\\
+63&	Aortic aneurysm and dissection\\
+64&	Other diseases of arteries, arterioles and capillaries\\
+65&	Other disorders of circulatory system\\
+66&	Influenza\\
+67&	Pneumonia\\
+68&	Acute bronchitis and bronchiolitis\\
+69&	Unspecified acute lower respiratory infection\\
+70&	Bronchitis, chronic and unspecified\\
+71&	Emphysema\\
+72&	Asthma\\
+73&	Other chronic lower respiratory diseases\\
+74&	Pneumoconioses and chemical effects\\
+75&	Pneumonitis due to solids and liquids\\
+76&	Other diseases of respiratory system\\
+77&	Peptic ulcer\\
+78&	Diseases of appendix\\
+79&	Hernia\\
+80&	Alcoholic liver disease\\
+81&	Other chronic liver disease and cirrhosis\\
+82&	Cholelithiasis and other disorders of gallbladder\\
+83&	Acute and rapidly progressive nephritic and nephrotic syndrome\\
+84&	Chronic glomerulonephritis, nephritis and nephritis not specified as acute or chronic, \\
+ &and renal sclerosis unspecified\\
+85&	Renal failure\\
+86&	Other disorders of kidney\\
+87&	Infections of kidney\\
+88&	Hyperplasia of prostate\\
+89&	Inflammatory diseases of female pelvic organs\\
+90&	Pregnancy with abortive outcome\\
+91&	Other complications of pregnancy, childbirth and the puerperium\\
+92&	Certain conditions originating in the perinatal period\\
+93&	Congenital malformations, deformations and chromosomal abnormalities\\
+94&	Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified\\
+95&	All other diseases (Residual)\\
+96&	Motor vehicle crash*\\
+97&	Unintentional injury: Other land transport*\\
+98&	Unintentional injury: Water, air and space, and other transport*\\
+99&	Falls*\\
+100&	Accidental discharge of firearms*\\
+101	&Accidental drowning and submersion*\\
+102	&Accidental exposure to smoke, fire and flames*\\
+103&	Accidental poisoning and exposure to noxious substances*\\
+104	&Other and unspecified nontransport accidents and their sequelae*\\
+105&	Intentional self-harm (suicide) by discharge of firearms*\\
+106	&Intentional self-harm (suicide) by other and unspecified means and their sequelae*\\
+107	&Assault (homicide) by discharge of firearms*\\
+108&	Assault (homicide) by other and unspecified means and their sequelae*\\
+109&	Legal intervention*\\
+110&	Discharge of firearms, undetermined intent*\\
+111&	Other and unspecified events of undetermined intent and their sequelae*\\
+112&	Operations of war and their sequelae*\\
+113&	Complications of medical and surgical care*\\
+\end{longtable}
+\end{center}
+
+\clearpage
+\section{Regression Outputs}
+
+\singlespacing
+\begin{longtable}{cccc}
+\\[-1.8ex] & Logistic & Unweighted Cox & Weighted Cox\\ 
+\hline \\[-1.8ex] 
+ histatus1 & 0.243 & 0.239 & 0.265 \\ 
+  & (0.178) & (0.172) & (0.176) \\ 
+  & & & \\ 
+ age & 0.089$^{***}$ & 0.086$^{***}$ & 0.080$^{***}$ \\ 
+  & (0.009) & (0.008) & (0.008) \\ 
+  & & & \\ 
+ sex2 & $-$0.639$^{***}$ & $-$0.611$^{***}$ & $-$0.637$^{***}$ \\ 
+  & (0.138) & (0.134) & (0.134) \\ 
+  & & & \\ 
+ urban2 & $-$0.476$^{***}$ & $-$0.464$^{***}$ & $-$0.446$^{**}$ \\ 
+  & (0.174) & (0.169) & (0.168) \\ 
+  & & & \\ 
+ race2 & 0.251 & 0.233 & $-$0.008 \\ 
+  & (0.207) & (0.198) & (0.208) \\ 
+  & & & \\ 
+ race3 & 0.167 & 0.158 & 0.138 \\ 
+  & (0.523) & (0.508) & (0.512) \\ 
+  & & & \\ 
+ race4 & 0.214 & 0.194 & 0.074 \\ 
+  & (0.280) & (0.272) & (0.264) \\ 
+  & & & \\ 
+ race5 & $-$1.801$^{*}$ & $-$1.758$^{*}$ & $-$2.632$^{**}$ \\ 
+  & (1.013) & (1.005) & (1.415) \\ 
+  & & & \\ 
+ health2 & 0.071 & 0.071 & 0.040 \\ 
+  & (0.189) & (0.187) & (0.194) \\ 
+  & & & \\ 
+ health3 & 0.131 & 0.137 & 0.295 \\ 
+  & (0.205) & (0.203) & (0.199) \\ 
+  & & & \\ 
+ health4 & 1.270$^{***}$ & 1.250$^{***}$ & 1.257$^{***}$ \\ 
+  & (0.228) & (0.222) & (0.224) \\ 
+  & & & \\ 
+ health5 & 1.680$^{***}$ & 1.583$^{***}$ & 1.642$^{***}$ \\ 
+  & (0.266) & (0.255) & (0.254) \\ 
+  & & & \\ 
+ adjinc2 & 0.064 & 0.079 & $-$0.050 \\ 
+  & (0.305) & (0.285) & (0.262) \\ 
+  & & & \\ 
+ adjinc3 & $-$0.546 & $-$0.449 & $-$0.793$^{*}$ \\ 
+  & (0.398) & (0.384) & (0.398) \\ 
+  & & & \\ 
+ adjinc4 & $-$0.942$^{**}$ & $-$0.842$^{**}$ & $-$1.185$^{***}$ \\ 
+  & (0.415) & (0.401) & (0.411) \\ 
+  & & & \\ 
+ adjinc5 & $-$0.024 & 0.027 & $-$0.463 \\ 
+  & (0.338) & (0.325) & (0.338) \\ 
+  & & & \\ 
+ adjinc6 & $-$0.965$^{***}$ & $-$0.894$^{***}$ & $-$1.080$^{***}$ \\ 
+  & (0.327) & (0.315) & (0.300) \\ 
+  & & & \\ 
+ adjinc7 & $-$0.426 & $-$0.382 & $-$0.574$^{*}$ \\ 
+  & (0.295) & (0.283) & (0.264) \\ 
+  & & & \\ 
+ adjinc8 & $-$0.489 & $-$0.436 & $-$0.538$^{*}$ \\ 
+  & (0.298) & (0.287) & (0.263) \\ 
+  & & & \\ 
+ adjinc9 & $-$0.661$^{**}$ & $-$0.591$^{*}$ & $-$0.822$^{**}$ \\ 
+  & (0.330) & (0.320) & (0.308) \\ 
+  & & & \\ 
+ adjinc10 & $-$1.060$^{***}$ & $-$0.984$^{***}$ & $-$1.255$^{***}$ \\ 
+  & (0.377) & (0.368) & (0.363) \\ 
+  & & & \\ 
+ adjinc11 & $-$3.016$^{***}$ & $-$2.928$^{***}$ & $-$3.227$^{***}$ \\ 
+  & (0.620) & (0.615) & (0.636) \\ 
+  & & & \\ 
+ adjinc12 & $-$1.126$^{***}$ & $-$1.044$^{***}$ & $-$1.332$^{***}$ \\ 
+  & (0.345) & (0.335) & (0.335) \\ 
+  & & & \\ 
+ adjinc13 & $-$0.794$^{**}$ & $-$0.718$^{**}$ & $-$1.017$^{***}$ \\ 
+  & (0.322) & (0.312) & (0.307) \\ 
+  & & & \\ 
+ adjinc14 & $-$1.148$^{***}$ & $-$1.058$^{***}$ & $-$1.172$^{***}$ \\ 
+  & (0.320) & (0.311) & (0.295) \\ 
+  & & & \\ 
+ Constant & $-$6.821$^{***}$ &  &  \\ 
+  & (0.412) &  &  \\ 
+  & & & \\ 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{3}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{longtable}
+
+\clearpage
+
+\printbibliography
+
+
+\end{document}
