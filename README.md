@@ -7,3 +7,7 @@ Selected examples of code for job applications. Below is a breif description of 
 * Plan B - Code for my Plan B research project. The project was an analysis of survey data collected by the Women in Neurology Collaberative Study
 * Causal Inference Code - The final exam for my causal inference course (PUBH 7485). Data come from the National Longitudinal Mortality Study.
 * Teaching Code - Code examples from a lecture I gave as a TA for STAT 4893W, Consultation and Communication for Statisticians with Dr. Kuzmak. The goal of this lecture was to give students a first look at SQL and Python and their basic usage. 
+
+
+## Note on old files
+Some of the older projects in this repository were written for one-off analyses and were not designed with reusability in mind. I’ve included them because they demonstrate specific skills relevant to the positions I’m applying for. My more recent work such as the Python App and Inequality Model reflects my current standards for modularity, clarity, and reproducibility.
