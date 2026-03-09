@@ -10,4 +10,4 @@ Selected examples of code for job applications. Below is a breif description of 
 
 
 ## Note on older work
-Some of the older projects in this repository were written for one-off analyses and were not designed with reusability in mind. I’ve included them because they demonstrate specific skills relevant to the positions I’m applying for. My more recent work such as the Python App and Inequality Model reflects my current standards for modularity, clarity, and reproducibility.
+Some of the older projects in this repository were written for one-off analyses and were not designed with reusability in mind. I’ve included them because they demonstrate specific skills relevant to the positions I’m applying for. My more recent work such as the Python App and Inequality Model reflects my current standards for modularity and reproducibility.
