@@ -39,9 +39,3 @@
   source('D:/Scioto/OK Min Wage/Minimum Wage Model/ipums cleanup.R') #Cleaning function
   dat = read.csv('OK Min Wage 2023 3_3.csv')
   dat = acs_cleaning(dat)
-  
-  ## Employment Impact----
-  # This takes SIGNIFCANTLY longer if same_els is FALSE
-  reps = 1e3
-  same_els = TRUE # this determines whether we use the same elasticity for everyone
-  source('D:/Scioto/OK Min Wage/Minimum Wage Model/employment impact.R')
